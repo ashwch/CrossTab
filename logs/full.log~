@@ -1,0 +1,17 @@
+[01/Feb/2015 14:58:20] DEBUG [django.db.backends:79] (0.000) QUERY = u'SELECT "django_session"."session_key", "django_session"."session_data", "django_session"."expire_date" FROM "django_session" WHERE ("django_session"."session_key" = %s  AND "django_session"."expire_date" > %s )' - PARAMS = (u'bcwzqerzw3mc7exmawlqu8zg284jrm4z', u'2015-02-01 14:58:20.986071'); args=('bcwzqerzw3mc7exmawlqu8zg284jrm4z', u'2015-02-01 14:58:20.986071')
+[01/Feb/2015 14:58:21] DEBUG [django.db.backends:79] (0.000) QUERY = u'SELECT "app_extendeduser"."id", "app_extendeduser"."password", "app_extendeduser"."last_login", "app_extendeduser"."email", "app_extendeduser"."first_name", "app_extendeduser"."last_name", "app_extendeduser"."is_active", "app_extendeduser"."is_admin", "app_extendeduser"."lat", "app_extendeduser"."lang", "app_extendeduser"."placename", "app_extendeduser"."address" FROM "app_extendeduser" WHERE "app_extendeduser"."id" = %s ' - PARAMS = (3,); args=(3,)
+[01/Feb/2015 14:58:21] INFO [app.views:100] Home view request from user 3.
+[01/Feb/2015 14:58:21] DEBUG [django.db.backends:79] (0.000) QUERY = u'SELECT "app_userfiles"."actual_name", "app_userfiles"."uploaded_file" FROM "app_userfiles" WHERE "app_userfiles"."userid_id" = %s  ORDER BY "app_userfiles"."upload_time" DESC' - PARAMS = (3,); args=(3,)
+[01/Feb/2015 14:58:21] INFO [app.views:106] Check if user already uploaded something, if yes read the latest file.
+[01/Feb/2015 14:58:21] DEBUG [django.db.backends:79] (0.000) QUERY = u'SELECT "app_userfiles"."id", "app_userfiles"."userid_id", "app_userfiles"."uploaded_file", "app_userfiles"."actual_name", "app_userfiles"."upload_time" FROM "app_userfiles" WHERE "app_userfiles"."userid_id" = %s  ORDER BY "app_userfiles"."upload_time" DESC LIMIT 1' - PARAMS = (3,); args=(3,)
+[01/Feb/2015 14:58:21] INFO [app.views:115] User's latest file was a99a5a20-396f-405b-bbdd-18c657b4385d.csv, now returning its data on the home page.
+[01/Feb/2015 14:59:05] INFO [app.views:100] Home view request from user 3.
+[01/Feb/2015 14:59:05] INFO [app.views:106] Check if user already uploaded something, if yes read the latest file.
+[01/Feb/2015 14:59:05] INFO [app.views:115] User's latest file was a99a5a20-396f-405b-bbdd-18c657b4385d.csv, now returning its data on the home page.
+[01/Feb/2015 14:59:06] INFO [app.views:100] Home view request from user 3.
+[01/Feb/2015 14:59:06] INFO [app.views:106] Check if user already uploaded something, if yes read the latest file.
+[01/Feb/2015 14:59:06] INFO [app.views:115] User's latest file was a99a5a20-396f-405b-bbdd-18c657b4385d.csv, now returning its data on the home page.
+[01/Feb/2015 14:59:31] INFO [app.views:212] Received a request to load en existing file u'files/9c68d9f0-2502-45b1-bbc4-5d8c6e48a73f.csv' from user 3
+[01/Feb/2015 14:59:31] INFO [app.views:214] Looking for the file u'files/9c68d9f0-2502-45b1-bbc4-5d8c6e48a73f.csv' in database.
+[01/Feb/2015 14:59:31] INFO [app.views:221] File found, time to process it using pandas.read_csv()
+[01/Feb/2015 14:59:31] INFO [app.views:225] File read successfully, returning the data to user.

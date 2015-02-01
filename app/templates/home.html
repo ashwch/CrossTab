@@ -1,0 +1,371 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+    <meta name="author" content="">
+    <link rel="icon" href="../../favicon.ico">
+
+    <title>RestRoom | Home</title>
+
+    <!-- Bootstrap core CSS -->
+   <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css">
+   <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/bootstrap-table/1.5.0/bootstrap-table.min.css">
+   <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+   <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.2/js/bootstrap.min.js"></script> -->
+   <script src="//cdnjs.cloudflare.com/ajax/libs/bootstrap-table/1.5.0/bootstrap-table.min.js"></script>
+   <script src="http://gregpike.net/demos/bootstrap-file-input/bootstrap.file-input.js"></script>
+      <style type="text/css">
+
+      body {
+        padding-top: 50px;
+        padding-bottom: 20px;
+      }
+
+      html, body{
+        height: 100%;
+        margin: 0px;
+        padding: 0px
+      }
+
+     .container {
+        width: 100%;
+      }
+
+      .cross{
+          overflow-y: scroll;
+          max-height: 400px;
+      }
+
+    </style>
+
+  </head>
+
+  <body>
+
+    <nav class="navbar navbar-inverse navbar-static-top">
+      <div class="container">
+        <div class="navbar-header">
+          <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a class="navbar-brand" href="#">Hello, {{user.first_name}} {{user.last_name}}</a>
+        </div>
+        <div id="navbar" class="navbar-collapse collapse">
+          <form id="file_form" class="navbar-form navbar-right" method="POST" action="{% url 'app:file_upload' %}" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="form-group">
+              <!-- <input type="text" id="pac-input" class="controls"> -->
+            </div>
+            <img src="http://i.imgur.com/67I6mTq.gif" style="display:none" id="gif-loader">
+            <img src="http://provennutritionforkids.com/wp-content/uploads/2012/10/Green-CheckMark.png" style="display:none" id="gif-done">
+            <img src="http://www.band-aidbrandfirstaid.com/sites/all/themes/firstaid/images/close.gif" style="display:none" id="gif-error">
+            <select class="form-control" id="old_files">
+              <option>Load an older file</option>
+              {% for file in old_files %}
+                  <option value="{{file.uploaded_file}}">{{file.actual_name}}</option>
+              {% endfor %}
+            </select>
+            <input type="hidden" name="userid" value="{{ user.id }}">
+            <input type="file" name="uploaded_file" data-filename-placement="inside" id="browse_file">
+            <!-- <input type="submit" value="Upload file" class="btn btn-success"> -->
+            <!-- <a href="#" class="btn btn-success" id="upload">Upload file</a> -->
+            <a href="{% url 'app:logout' %}" class="btn btn-success">Logout</a>
+          </form>
+        </div><!--/.navbar-collapse -->
+      </div>
+    </nav>
+
+    <div class="container">
+
+    <form id="ct_form" class="navbar-left form-inline" method="POST" action="{% url 'app:cross_tabulate' %}" style="display:None">
+      {% csrf_token %}
+      <select class="form-control" id="field1" name="field1">
+      </select>
+
+      <select class="form-control" id="field2" name="field2">
+      </select>
+
+      <input type="submit" value="Cross-tabulate" class="btn btn-success">
+
+      </form>
+      <br/>
+
+      <div class="jumbotron" id="welcome">
+        <h1>Welcome to CrossTab</h1>
+        <p class="lead">Upload a <a target="_blank" href="http://en.wikipedia.org/wiki/Comma-separated_values">CSV file</a> using the "browse" button on the top right to get started.</p>
+      </div>
+
+      <div id="main_table">
+      </div>
+      <div id="cross_table_div">
+          <h4 style="margin-left:45%">Cross tabulation results</h4>
+          <div id="cross_table" class="cross"></div>
+      </div>
+
+    </div>
+
+
+    <script>
+
+    var file_name;
+
+    if (!String.prototype.format) {
+      String.prototype.format = function() {
+        var args = arguments;
+        return this.replace(/{(\d+)}/g, function(match, number) { 
+          return typeof args[number] != 'undefined'
+            ? args[number]
+            : match
+          ;
+        });
+      };
+    }
+
+    function getCookie(name) {
+        var cookieValue = null;
+        if (document.cookie && document.cookie != '') {
+            var cookies = document.cookie.split(';');
+            for (var i = 0; i < cookies.length; i++) {
+                var cookie = jQuery.trim(cookies[i]);
+                // Does this cookie string begin with the name we want?
+                if (cookie.substring(0, name.length + 1) == (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    var main_table =  "<table id='table' data-toggle='table' data-height='400'>"+
+                      "<thead>"+
+                      "<tr>{0}</tr>"+
+                      "</thead>"+
+                      "</table>";
+
+    function populate(id, fields, ignore){
+      $(id).html('');
+      var options = '';
+      for(var i=0; i < fields.length; i++){
+        if(fields[i] !== ignore){
+          options += '<option>{0}</option>'.format(fields[i]);
+        }
+        
+      }
+
+      $(id).html(options);
+    }
+
+    function process_data(data){
+
+      $('#main_table').html('');
+      var rows = '';
+      var ct_fields = '';
+      for(var i=0; i < data.headers.length; i++){
+         rows += '<th data-field="{0}">{1}</th>'.format(data.headers[i], data.headers[i]);
+      }
+      $('#main_table').html(main_table.format(rows));
+      populate('#field1', data.headers);
+      populate('#field2', data.headers.slice(1));
+      console.log(main_table.format(rows));
+      $('#table').bootstrapTable({
+           data: data.data
+      });
+    }
+
+    function success_gif(){
+      $('#gif-loader').hide();
+      $('#gif-done').show();  
+      $("#gif-done" ).fadeOut(1000);
+    }
+
+    function failure_gif(){
+      $('#gif-loader').hide();
+      $('#gif-error').show();  
+      $( "#gif-error" ).fadeOut(1000);
+    }
+
+    var csrftoken = getCookie('csrftoken');
+
+    $(document).ready(function(){
+
+      $('#cross_table_div').hide()
+
+      $('input[type=file]').bootstrapFileInput();
+
+      {% if headers %}
+      var headers = {{headers|safe}};
+      var data = {{data|safe}};
+      file_name = "{{file_name}}";
+      process_data({data: data, headers: headers});
+      $('#welcome').hide();
+      $('#ct_form').show()
+
+      {% endif %}
+
+
+      $('#field1').change(function(){
+        var options = $.map($(this).find('option'), function(e) { return e.value; });
+        populate('#field2', options, $(this).val());
+      });
+
+      $('#old_files').change(function(){
+        $('#gif-loader').show()
+
+        var name = $(this).val();
+        $.ajax({
+            url: "{% url 'app:load_old_file' %}",
+            type: 'POST',
+            data: {file_name: name, csrfmiddlewaretoken: csrftoken},
+            success: function(data, textStatus, jqXHR)
+            {
+
+              if(data.status){
+                success_gif();
+                file_name = data.file_name;
+                process_data({data: data.data, headers: data.headers});
+                $('#cross_table_div').hide()
+                $('#cross_table').html('');
+                file_name = name;
+              }
+              else{
+                failure_gif();
+                alert(data.error);
+              }
+
+
+            },
+             error: function(jqXHR, textStatus, errorThrown) 
+             {
+              failure_gif();
+              alert('Oops! Something went wrong.')
+             }          
+        });
+
+      })
+
+      $('#ct_form').submit(function(e){
+
+        e.preventDefault();
+        console.log('Sending cross tabulation request....');
+
+        var field1 = $('#field1').val();
+        var field2 = $('#field2').val();
+
+        console.log([field1, field2]);
+
+        if(!(field1 && field2 && field1 != field2)){
+
+          alert('Please choose the fields properly.');
+          return false;
+        }
+
+        var form_obj = $(this);
+        var form_URL = form_obj.attr("action");
+        var form_data = new FormData(this);
+        form_data.append('file_name', file_name);
+        $('#gif-loader').show()
+
+        $.ajax({
+            url: form_URL,
+            type: 'POST',
+            data: form_data,
+            mimeType:"multipart/form-data",
+            contentType: false,
+            cache: false,
+            processData:false,
+            success: function(data, textStatus, jqXHR)
+            {
+              data = JSON.parse(data);
+              if(data.status){
+                success_gif();
+                $('#cross_table_div').show();
+                $('#cross_table').html(data.data);
+              }
+              else{
+                failure_gif();
+                alert(data.error);
+              }
+              
+            },
+             error: function(jqXHR, textStatus, errorThrown) 
+             {
+              failure_gif();
+              alert('Oops! Something went wrong.')
+             }          
+        });
+        
+      });
+
+      $('#browse_file').change(function(){
+         $('#file_form').submit();
+      });
+
+      $('#file_form').submit(function(e){
+
+        e.preventDefault();
+        console.log('Uploading file....')
+        $('#gif-loader').show()
+
+        var form_obj = $(this);
+        var form_URL = form_obj.attr("action");
+        var form_data = new FormData(this);
+        var actual_name = $(this).find('input[type=file]').val().split('\\').pop();
+
+        $.ajax({
+            url: form_URL,
+            type: 'POST',
+                data: form_data,
+            mimeType:"multipart/form-data",
+            contentType: false,
+                cache: false,
+                processData:false,
+            success: function(data, textStatus, jqXHR)
+            {
+
+              console.log(data);
+
+              data = JSON.parse(data);
+
+              if(data.status){
+                success_gif();
+                console.log(data);
+                file_name = data.file_name;
+                process_data({data: data.data, headers: data.headers});
+                $('#cross_table_div').hide()
+                $('#cross_table').html('');
+                $("#file_form option:first").after('<option value="{0}">{1}</option>'.format(data.file_name, actual_name));
+                $('#file_form option:eq(1)').prop('selected', true);
+                $('#welcome').hide();
+                $('#ct_form').show()
+              }
+              else{
+                failure_gif();
+                alert(data.error);
+              }
+
+
+            },
+             error: function(jqXHR, textStatus, errorThrown) 
+             {
+              failure_gif();
+              alert("Oops! Something went wrong.")
+             }          
+        });
+        
+      });
+
+    });
+
+    </script>
+
+  </body>
+</html>
+

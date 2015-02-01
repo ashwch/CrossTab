@@ -1,0 +1,293 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+    <meta name="author" content="">
+    <link rel="icon" href="../../favicon.ico">
+
+    <title>RestRoom | Explore</title>
+
+    <!-- Bootstrap core CSS -->
+   <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css">
+   <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+   <script src="https://maps.googleapis.com/maps/api/js?v=3.exp&libraries=places"></script>
+   <link rel="stylesheet" href="//code.jquery.com/ui/1.11.2/themes/smoothness/jquery-ui.css">
+   <script src="//code.jquery.com/jquery-1.10.2.js"></script>
+   <script src="//code.jquery.com/ui/1.11.2/jquery-ui.js"></script>
+
+    <!-- Custom styles for this template -->
+    <style type="text/css">
+
+          /* Move down content because we have a fixed navbar that is 50px tall */
+      body {
+        padding-top: 50px;
+        padding-bottom: 20px;
+      }
+
+      html, body{
+        height: 100%;
+        margin: 0px;
+        padding: 0px
+      }
+
+        #map-canvas{
+          height: 800px;
+          width: 100%;
+        }
+      .controls {
+          margin-top: 16px;
+          border: 1px solid transparent;
+          border-radius: 2px 0 0 2px;
+          box-sizing: border-box;
+          -moz-box-sizing: border-box;
+          height: 32px;
+          outline: none;
+          box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        #pac-input {
+ /*         background-color: #fff;
+          padding: 0 11px 0 13px;
+          width: 400px;
+          font-family: Roboto;
+          font-size: 15px;
+          font-weight: 300;
+          text-overflow: ellipsis;*/
+        }
+
+        #pac-input:focus {
+          border-color: #4d90fe;
+          margin-left: -1px;
+          padding-left: 14px;  /* Regular padding-left + 1. */
+          width: 401px;
+        }
+
+        .pac-container {
+          font-family: Roboto;
+        }
+
+        #type-selector {
+          color: #fff;
+          background-color: #4d90fe;
+          padding: 5px 11px 0px 11px;
+        }
+
+        #type-selector label {
+          font-family: Roboto;
+          font-size: 13px;
+          font-weight: 300;
+        }
+
+      #target {
+        width: 345px;
+      }
+    .container {
+      width: 100%;
+    }
+
+    </style>
+
+  </head>
+
+  <body>
+
+    <nav class="navbar navbar-inverse navbar-static-top">
+      <div class="container">
+        <div class="navbar-header">
+          <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a class="navbar-brand" href="#">Hello, {{user.first_name}} {{user.last_name}}</a>
+        </div>
+        <div id="navbar" class="navbar-collapse collapse">
+          <form class="navbar-form navbar-right">
+            <div class="form-group">
+              <!-- <input type="text" id="pac-input" class="controls"> -->
+            </div>
+            <img src="http://i.imgur.com/67I6mTq.gif" style="display:none" id="gif-loader">
+            <img src="http://provennutritionforkids.com/wp-content/uploads/2012/10/Green-CheckMark.png" style="display:none" id="gif-done">
+            <a href="{% url 'app:home' %}" class="btn btn-success" id="update-location">Home</a>
+            <a href="{% url 'app:logout' %}" class="btn btn-success">Logout</a>
+          </form>
+        </div><!--/.navbar-collapse -->
+      </div>
+    </nav>
+
+    <div class="container">
+      <!-- <input id="pac-input" class="controls" type="text" placeholder="Search Box"> -->
+<!--       <input id="pac-input" class="controls" type="text" placeholder="Search Box"> -->
+      <div id="map-canvas"></div>
+      <p style="margin-bottom:-100px">
+
+          <label for="amount">Explore others(50 Km increments):</label>
+          <input type="text" id="amount" readonly style="border:0; color:#f6931f; font-weight:bold;">
+      </p>
+      <div id="slider"></div>
+    </div>
+
+    <script>
+
+    var latitude, longitude, map, infowindows = [], markers = [];
+
+    var data = {{data|safe}};
+
+    function getCookie(name) {
+        var cookieValue = null;
+        if (document.cookie && document.cookie != '') {
+            var cookies = document.cookie.split(';');
+            for (var i = 0; i < cookies.length; i++) {
+                var cookie = jQuery.trim(cookies[i]);
+                // Does this cookie string begin with the name we want?
+                if (cookie.substring(0, name.length + 1) == (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    var csrftoken = getCookie('csrftoken');
+
+    $(document).ready(function(){
+
+
+      $(function() {
+        $( "#slider" ).slider({
+          value: 200,
+          min: 0,
+          max: 20000,
+          step: 50,
+          slide: function( event, ui ) {
+            $( "#amount" ).val(ui.value + ' KM');
+
+            $.ajax({
+            url: "{% url 'app:peoplenearby' %}",
+            type: 'POST',
+            data: {csrfmiddlewaretoken:csrftoken,
+                   distance: ui.value
+                 },
+            success: function(data) {
+              console.log(data);
+              $('#gif-loader').hide();
+              $('#gif-done').show();  
+              $( "#gif-done" ).fadeOut(1000);
+              if(data.status){
+                putMarkers({}, JSON.parse(data.data));
+              } 
+              else{
+                alert('Opps!!')
+              }  
+
+
+            },
+            error: function(e) {
+              console.log('error');
+              console.log(e.toString());
+            }
+          });
+
+
+          }
+        });
+        $( "#amount" ).val($( "#slider" ).slider( "value" ) + ' Km');
+      });
+
+    });
+
+
+
+    function clearMarkersWindows() {
+      for (var i = 0; i < markers.length; i++) {
+        markers[i].setMap(null);
+        infowindows[i].close();
+      }
+    }
+
+    function moreinfo(marker, infowindow){
+
+      var f = function(){
+        console.log('Guess what, someone clicked me!')
+        content = '<div><strong>' +  marker.custom_info.first_name + ' ' + marker.custom_info.last_name + '</strong><br>' + marker.custom_info.address + '</div>';
+        infowindow.setContent(content);
+        infowindow.open(map, marker);
+      }
+      return f;
+
+    }
+
+    function putMarkers(foo, loc_data){
+      console.log('Running putMarkers');
+
+      clearMarkersWindows();
+      markers = [];
+      infowindows = [];
+
+      if(loc_data === undefined){
+        loc_data = data;
+      }
+
+      console.log(JSON.stringify(loc_data));
+
+      var bounds = new google.maps.LatLngBounds();
+
+      for(var i=0; i < loc_data.length; i++){
+        var loc = loc_data[i];
+        var geolocate = new google.maps.LatLng(loc.lat, loc.lang);
+        var marker = new google.maps.Marker({
+           map: map,
+           anchorPoint: new google.maps.Point(0, -29),
+           title: 'Click for more info!'
+        });
+        marker.setPosition(geolocate);
+        marker.setVisible(true);
+        var infowindow = new google.maps.InfoWindow();
+
+        marker.custom_info = {first_name: loc.first_name,
+                              last_name: loc.last_name,
+                              address: loc.address,
+                              infowindow: infowindow
+                            }
+        
+        //closure call
+        google.maps.event.addListener(marker, 'click', moreinfo(marker, infowindow));
+        
+        infowindow.setContent('<div>' +  loc.first_name + '</div>');
+        infowindow.open(map, marker);
+        markers.push(marker); 
+        infowindows.push(infowindow);
+        bounds.extend(geolocate);
+      }
+
+      map.fitBounds(bounds);
+      map.setCenter(bounds.getCenter());
+
+    }
+
+
+    function initialize() {
+
+      console.log('Running initialize');
+
+      map = new google.maps.Map(document.getElementById('map-canvas'), {
+        mapTypeId: google.maps.MapTypeId.ROADMAP,
+        center: new google.maps.LatLng({{user.lat}}, {{user.lang}}),
+        zoom: 14
+      });
+    }
+
+    google.maps.event.addDomListener(window, 'load', initialize);
+    google.maps.event.addDomListener(window, 'load', putMarkers);
+
+    </script>
+
+  </body>
+</html>
+
