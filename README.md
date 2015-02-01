@@ -50,6 +50,7 @@ This app allows you to cross-tabulate a csv file on two columns.
 - JavaScript
 - Pandas
 - jQuery
+- Sqlite3
 - Twitter Bootstrap
 - BeautifulSoup
 - Bootstrap Table
